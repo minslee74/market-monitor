@@ -1,0 +1,38 @@
+name: Collect market data
+
+on:
+  schedule:
+    - cron: '30 9 * * 1-5'   # 18:30 KST, Mon-Fri (09:30 UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pykrx yfinance requests pandas
+
+      - name: Run collector
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python collect.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "market-monitor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.js data/market.json
+          git diff --cached --quiet || git commit -m "chore: update market data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push
