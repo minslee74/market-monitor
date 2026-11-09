@@ -1,0 +1,6 @@
+.env
+certs/
+__pycache__/
+.playwright-mcp/
+collect_log.txt
+market-monitor-home.zip

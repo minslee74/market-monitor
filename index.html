@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Market Monitor</title>
+<style>
+:root{
+  --bg:#0a0e13;--panel:#111821;--panel2:#16202b;--line:#1e2a37;--text:#e6edf3;--mute:#8696a9;--dim:#5b6b7e;
+  --accent:#4aa3ff;--c1:#4aa3ff;--c2:#f5a524;--c3:#a78bfa;--c4:#34d399;--c5:#f472b6;
+  --up:#ff5b5b;--down:#4a8dff;
+  --font:"Pretendard","Malgun Gothic","Segoe UI",system-ui,sans-serif;
+}
+body[data-color="global"]{--up:#2fd18b;--down:#ff5b5b}
+*{box-sizing:border-box}
+html{scrollbar-color:#2a3746 var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 var(--font);font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--mute)}
+header{position:sticky;top:0;z-index:20;background:rgba(10,14,19,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hbar{display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.logo{font-weight:700;font-size:16px;letter-spacing:.3px}
+.logo small{color:var(--mute);font-weight:400;margin-left:8px;font-size:11px}
+.badge{background:#3a2a0a;color:#f5a524;border:1px solid #6b4a10;padding:2px 8px;border-radius:10px;font-size:11px}
+.sp{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:transparent;color:var(--mute);border:0;padding:5px 10px;font:inherit;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--panel2);color:var(--text)}
+.seg button:hover{color:var(--text)}
+.lbl{color:var(--mute);font-size:11px;margin-right:6px}
+nav{display:flex;gap:2px;padding:0 20px 8px;overflow-x:auto}
+nav a{color:var(--mute);text-decoration:none;padding:3px 10px;border-radius:5px;white-space:nowrap;font-size:12px}
+nav a:hover{background:var(--panel2);color:var(--text)}
+/* ticker */
+.ticker{overflow:hidden;border-bottom:1px solid var(--line);background:#0d131a}
+.tk-track{display:flex;width:max-content;animation:scroll 70s linear infinite}
+.ticker:hover .tk-track{animation-play-state:paused}
+.tk{display:flex;gap:8px;align-items:baseline;padding:7px 18px;border-right:1px solid var(--line);white-space:nowrap}
+.tk b{font-weight:600}.tk span{color:var(--mute);font-size:11px}
+@keyframes scroll{to{transform:translateX(-50%)}}
+main{padding:16px 20px 40px;max-width:1680px;margin:0 auto}
+section{margin-top:26px;scroll-margin-top:96px}
+h2{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mute);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(12,1fr)}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media(max-width:1200px){.c3{grid-column:span 6}.c4,.c5,.c6,.c7,.c8{grid-column:span 12}}
+@media(max-width:640px){.c3{grid-column:span 12}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.ph h3{margin:0;font-size:13px;font-weight:600}
+.ph .src{color:var(--dim);font-size:11px;margin-left:auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:transparent;color:var(--mute);padding:2px 9px;border-radius:12px;font:inherit;font-size:11.5px;cursor:pointer}
+.chip.on{color:var(--text);border-color:var(--cc,var(--accent));background:color-mix(in srgb,var(--cc,var(--accent)) 16%,transparent)}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%}
+.tip{position:absolute;pointer-events:none;background:#0b1118ee;border:1px solid #2a3a4c;border-radius:6px;padding:6px 9px;font-size:11.5px;z-index:5;white-space:nowrap;display:none}
+.tip .d{color:var(--mute);margin-bottom:2px}
+.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--mute);font-size:11.5px;margin-top:4px}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:5px;vertical-align:middle;border-radius:2px}
+/* stat card */
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stat .n{color:var(--mute);font-size:11.5px;display:flex;justify-content:space-between}
+.stat .v{font-size:21px;font-weight:650;letter-spacing:-.3px}
+.stat .v small{font-size:11px;color:var(--mute);font-weight:400;margin-left:3px}
+.stat .ch{font-size:12px}
+.stat .sub{color:var(--dim);font-size:11px}
+.stat svg{margin-top:4px;width:100%;height:30px}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+/* table */
+table{width:100%;border-collapse:collapse}
+th{color:var(--mute);font-weight:500;font-size:11.5px;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;text-align:right;border-bottom:1px solid #18222d;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--panel2)}
+.tw{overflow-x:auto}
+.pbar{display:inline-block;width:64px;height:6px;background:#1c2733;border-radius:3px;vertical-align:middle;margin-right:6px;position:relative;overflow:hidden}
+.pbar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+/* heatmap */
+.heat{display:flex;flex-wrap:wrap;gap:3px}
+.tile{height:64px;border-radius:4px;padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;min-width:92px;font-size:12px;color:#fff}
+.tile b{font-weight:600}
+/* gauge & bars */
+.gwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.sigs{flex:1;min-width:200px;display:grid;gap:7px}
+.sig{display:grid;grid-template-columns:124px 1fr 88px;gap:8px;align-items:center;font-size:12px}
+.sig .tr{height:6px;border-radius:3px;background:linear-gradient(90deg,#4a8dff55,#8696a955,#ff5b5b55);position:relative}
+.sig .tr i{position:absolute;top:-3px;width:3px;height:12px;border-radius:2px;background:#fff;transform:translateX(-50%)}
+.sig em{font-style:normal;color:var(--mute);text-align:right}
+.brief{background:linear-gradient(90deg,#10202f,var(--panel));border:1px solid #1d3347;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#c9d6e3}
+.brief b{color:var(--accent)}
+.breadth{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0}
+.cal td:nth-child(1),.cal td:nth-child(2){color:var(--mute)}
+.cal td:nth-child(3){text-align:left;white-space:normal}
+.dots{color:var(--c2);letter-spacing:1px}
+.tag{font-size:10px;padding:0 7px;border-radius:9px;border:1px solid;line-height:16px;font-weight:500;letter-spacing:0;text-transform:none}
+.tag.real{color:#34d399;border-color:#1f6b52}.tag.partial{color:#a78bfa;border-color:#4b3d80;cursor:help}.tag.sample{color:#f5a524;border-color:#6b4a10}
+.note{color:var(--dim);font-size:11.5px;margin-top:8px}
+footer{color:var(--dim);font-size:11.5px;text-align:center;padding:20px}
+</style>
+</head>
+<body data-color="kr">
+<header>
+  <div class="hbar">
+    <div class="logo">MARKET MONITOR<small>한국 투자자용 경제·시장 지표</small></div>
+    <span class="badge">샘플 데이터 · 실제 시세 아님</span>
+    <span class="sp"></span>
+    <span><span class="lbl">기간</span><span class="seg" id="rangeSeg"></span></span>
+    <span><span class="lbl">등락 색상</span><span class="seg" id="colorSeg"></span></span>
+    <span class="lbl" id="asof"></span>
+  </div>
+  <nav>
+    <a href="#sum">시장 요약</a><a href="#stock">주식시장</a><a href="#val">밸류에이션</a><a href="#flow">수급</a><a href="#credit">신용·자금</a><a href="#breadth">시장 폭</a><a href="#rate">금리·채권</a><a href="#fx">환율·원자재</a><a href="#macro">거시경제</a><a href="#cal">캘린더</a>
+  </nav>
+</header>
+<div class="ticker"><div class="tk-track" id="ticker"></div></div>
+
+<main>
+<section id="sum">
+  <h2>시장 요약 · Market Regime</h2>
+  <div class="brief" id="brief"></div>
+  <div class="grid">
+    <div class="panel c5">
+      <div class="ph"><h3>종합 위험선호 지수</h3><span class="src">0=극단적 공포 · 100=극단적 탐욕</span></div>
+      <div class="gwrap"><div id="gauge"></div><div class="sigs" id="sigs"></div></div>
+    </div>
+    <div class="panel c7">
+      <div class="ph"><h3>주요 지수 한눈에</h3><span class="src">PER 백분위 = 최근 10년 대비 현재 위치</span></div>
+      <div class="tw"><table id="valTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<section id="stock">
+  <h2>주식시장 · Equities</h2>
+  <div class="grid">
+    <div class="panel c8">
+      <div class="ph"><h3>지수 추이</h3>
+        <div class="chips" id="idxChips"></div><span class="src">2개 이상 선택 시 시작점=100 리베이스</span></div>
+      <div class="chart" id="idxChart"></div><div class="legend" id="idxLegend"></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>업종 히트맵</h3><span class="src">크기=시총 비중 · 색=등락률</span></div>
+      <div class="heat" id="heat"></div>
+    </div>
+    <div class="panel c12">
+      <div class="ph"><h3>시가총액 상위 종목</h3><span class="src">외국인 보유율 · 컨센서스 기준 선행 PER</span></div>
+      <div class="tw"><table id="topTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<section id="val">
+  <h2>밸류에이션 · Valuation</h2>
+  <div class="grid">
+    <div class="panel c8">
+      <div class="ph"><h3>PER / PBR 밴드</h3>
+        <div class="chips" id="valMk"></div><div class="chips" id="valMt"></div></div>
+      <div class="chart" id="valChart"></div>
+      <div class="legend"><span><i style="background:var(--c1)"></i>지표</span><span><i style="background:#8696a9"></i>평균</span><span><i style="background:var(--c2)"></i>±1σ</span><span><i style="background:var(--c5)"></i>±2σ</span></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>밸류에이션 요약</h3></div>
+      <div class="cards" style="grid-template-columns:1fr 1fr" id="valCards"></div>
+      <div class="note">이익수정비율·ERP(주식위험프리미엄) = 1/PER − 국채10Y 수익률 기준으로 계산</div>
+    </div>
+  </div>
+</section>
+
+<section id="flow">
+  <h2>수급 · Investor Flows</h2>
+  <div class="grid">
+    <div class="panel c8">
+      <div class="ph"><h3>투자자별 순매수 (KOSPI+KOSDAQ, 일간)</h3><span class="src">단위: 억원 · 최근 20거래일</span></div>
+      <div class="chart" id="flowChart"></div>
+      <div class="legend"><span><i style="background:var(--c2)"></i>외국인</span><span><i style="background:var(--c3)"></i>기관</span><span><i style="background:var(--c4)"></i>개인</span></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>기간별 누적 순매수</h3><span class="src">억원</span></div>
+      <div class="tw"><table id="flowTable"></table></div>
+      <div class="ph" style="margin-top:14px"><h3>외국인 보유 비중 (KOSPI)</h3></div>
+      <div class="chart" id="forChart"></div>
+    </div>
+  </div>
+</section>
+
+<section id="credit">
+  <h2>신용·자금 · Leverage &amp; Liquidity</h2>
+  <div class="cards" id="creditCards" style="margin-bottom:12px"></div>
+  <div class="grid">
+    <div class="panel c6">
+      <div class="ph"><h3>신용융자 잔고 vs 투자자예탁금</h3><span class="src">좌: 신용(조원) · 우: 예탁금(조원)</span></div>
+      <div class="chart" id="creditChart"></div>
+      <div class="legend"><span><i style="background:var(--c2)"></i>신용 KOSPI</span><span><i style="background:var(--c5)"></i>신용 KOSDAQ</span><span><i style="background:var(--c1)"></i>예탁금 (우)</span></div>
+    </div>
+    <div class="panel c6">
+      <div class="ph"><h3>신용잔고 / 시가총액 비율 · 반대매매</h3><span class="src">비율(%) · 반대매매(억원/일)</span></div>
+      <div class="chart" id="forcedChart"></div>
+      <div class="legend"><span><i style="background:var(--c3)"></i>신용/시총 (%)</span><span><i style="background:var(--c1)"></i>반대매매 (우)</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="breadth">
+  <h2>시장 폭 · Breadth &amp; Activity</h2>
+  <div class="grid">
+    <div class="panel c4">
+      <div class="ph"><h3>오늘의 시장 폭</h3></div>
+      <div id="breadthBox"></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>일평균 거래대금</h3><span class="src">KOSPI+KOSDAQ · 조원</span></div>
+      <div class="chart" id="volChart"></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>200일선 상회 종목 비율</h3><span class="src">% · 20↓ 과매도 / 80↑ 과열</span></div>
+      <div class="chart" id="ma200Chart"></div>
+    </div>
+  </div>
+</section>
+
+<section id="rate">
+  <h2>금리·채권 · Rates &amp; Credit</h2>
+  <div class="grid">
+    <div class="panel c4">
+      <div class="ph"><h3>금리 현황</h3><span class="src">변동: bp</span></div>
+      <div class="tw"><table id="rateTable"></table></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>한·미 10년 국채금리</h3><span class="src">%</span></div>
+      <div class="chart" id="krusChart"></div>
+      <div class="legend"><span><i style="background:var(--c1)"></i>한국 10Y</span><span><i style="background:var(--c2)"></i>미국 10Y</span></div>
+    </div>
+    <div class="panel c4">
+      <div class="ph"><h3>미국 장단기 금리차 (10Y−2Y)</h3><span class="src">%p · 음영=역전</span></div>
+      <div class="chart" id="spreadChart"></div>
+    </div>
+    <div class="panel c6">
+      <div class="ph"><h3>한미 기준금리 격차</h3><span class="src">%</span></div>
+      <div class="chart" id="policyChart"></div>
+      <div class="legend"><span><i style="background:var(--c1)"></i>한국</span><span><i style="background:var(--c2)"></i>미국 (상단)</span></div>
+    </div>
+    <div class="panel c6">
+      <div class="ph"><h3>회사채 신용스프레드 (AA- 3Y − 국고 3Y)</h3><span class="src">bp</span></div>
+      <div class="chart" id="creditSpread"></div>
+    </div>
+  </div>
+</section>
+
+<section id="fx">
+  <h2>환율·원자재·가상자산 · FX &amp; Commodities</h2>
+  <div class="cards" id="fxCards"></div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><h3>원/달러 vs 달러인덱스</h3><span class="src">좌: USD/KRW · 우: DXY</span></div>
+    <div class="chart" id="fxChart"></div>
+    <div class="legend"><span><i style="background:var(--c1)"></i>USD/KRW</span><span><i style="background:var(--c2)"></i>DXY (우)</span></div>
+  </div>
+</section>
+
+<section id="macro">
+  <h2>거시경제 · Macro</h2>
+  <div class="cards" id="macroCards"></div>
+</section>
+
+<section id="cal">
+  <h2>이벤트 캘린더 · Calendar</h2>
+  <div class="panel"><div class="tw"><table class="cal" id="calTable"></table></div></div>
+</section>
+</main>
+<footer><b>실데이터</b> 태그는 yfinance 등에서 수집한 값(지연·오차 가능), <b>샘플</b> 태그는 UI 검증용 난수 데이터입니다. <b>일부 실데이터 ⓘ</b> 태그는 마우스를 올리면 그 패널에서 구체적으로 어떤 항목이 샘플/N/A인지 보여줍니다. 티커의 * 표시는 샘플 값입니다. 투자 판단 자료로 사용하지 마세요.</footer>
+
+<script src="data.js"></script>
+<script>
+/* ============ 유틸 ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let R=mulberry(20261106);
+const norm=()=>Math.sqrt(-2*Math.log(1-R()))*Math.cos(2*Math.PI*R());
+/* 곱셈형 랜덤워크, 마지막 값을 end에 맞춤 */
+function gen(n,end,vol,drift=0){const x=[0];for(let i=1;i<n;i++)x.push(x[i-1]+drift+vol*norm());const v=x.map(Math.exp),s=end/v[n-1];return v.map(a=>a*s)}
+/* 평균회귀(OU), end에서 과거로 역생성 */
+function ou(n,end,mean,k,vol,min=-1e9){const a=[end];for(let i=1;i<n;i++){const p=a[i-1];a.push(Math.max(min,p+k*(mean-p)+vol*norm()))}return a.reverse()}
+const fmt=(v,d=2)=>v==null?'-':Number(v).toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const cls=v=>v>0?'up':v<0?'down':'flat';
+const arrow=v=>v>0?'▲':v<0?'▼':'–';
+const sgn=(v,d=2)=>(v>0?'+':'')+fmt(v,d);
+const pct=(a,b)=>(a/b-1)*100;
+const last=a=>a[a.length-1];
+
+/* ============ 날짜/기간 ============ */
+const DATA=window.DATA||{series:{},status:{}};
+const KS=DATA.series.kospi; // 실데이터가 있으면 KOSPI 거래일을 기준 달력으로 사용
+const N=KS?KS.dates.length:1300;
+const DATES=KS?KS.dates.map(s=>new Date(s+'T00:00:00')):(()=>{const a=[];let d=new Date(2026,10,6);while(a.length<N){if(d.getDay()%6!==0)a.push(new Date(d));d=new Date(d-864e5)}return a.reverse()})();
+const ds=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const RANGES={'1M':21,'3M':63,'6M':126,'1Y':252,'3Y':756,'5Y':1260};
+let RANGE='1Y';
+const sl=a=>a.slice(-RANGES[RANGE]);
+const dsl=()=>sl(DATES);
+
+/* ============ 샘플 데이터 ============ */
+const IDX=[
+ {k:'KOSPI',v:4182.35,vol:.0085,per:13.8,fper:10.9,pbr:1.42,div:1.9,roe:10.3,pct:78,color:'var(--c1)'},
+ {k:'KOSDAQ',v:912.48,vol:.011,per:27.5,fper:21.4,pbr:2.61,div:0.6,roe:9.4,pct:55,color:'var(--c2)'},
+ {k:'KOSPI200',v:571.12,vol:.0085,per:13.2,fper:10.6,pbr:1.38,div:1.9,roe:10.5,pct:76,color:'var(--c3)'},
+ {k:'S&P500',v:6890.4,vol:.0072,per:23.1,fper:21.8,pbr:5.1,div:1.2,roe:22.1,pct:92,color:'var(--c4)'},
+ {k:'NASDAQ',v:23512.7,vol:.0095,per:31.2,fper:26.3,pbr:7.2,div:0.7,roe:24.4,pct:90,color:'var(--c5)'},
+];
+IDX.forEach(o=>{o.s=gen(N,o.v,o.vol,.0004)});
+const S={}; // 기타 시계열
+const G=(k,end,vol,drift=0)=>S[k]=gen(N,end,vol,drift);
+G('nikkei',50210,.011,.0003);G('shcomp',4012,.008);G('usdkrw',1456.3,.0048);G('jpykrw',945.2,.0055);G('eurkrw',1688.4,.005);G('cnykrw',204.6,.0045);
+G('dxy',99.6,.0035);G('wti',61.8,.015);G('brent',65.4,.014);G('gold',4012,.009,.0006);G('copper',5.28,.011);G('btc',103400,.028,.0006);
+S.kr10=ou(N,3.12,3.3,.02,.025,1);S.us10=ou(N,4.08,4.2,.02,.03,1);S.us2=ou(N,3.62,3.9,.02,.035,.5);S.kr3=ou(N,2.78,3,.02,.02,.8);S.kr30=ou(N,3.08,3.2,.02,.022,1);S.us30=ou(N,4.62,4.5,.02,.028,1);
+S.ust=S.us10.map((v,i)=>v-S.us2[i]+(i<700?-.55:.1));
+S.cd=ou(N,2.54,2.8,.02,.012,1);S.aa=ou(N,3.31,3.5,.02,.018,1);
+S.cspread=S.aa.map((v,i)=>(v-S.kr3[i])*100+ (i%7)*0);
+S.polKR=Array.from({length:N},(_,i)=>i<500?3.5:i<900?3.5:i<1000?3.25:i<1100?3.0:i<1180?2.75:2.5);
+S.polUS=Array.from({length:N},(_,i)=>i<500?5.5:i<800?5.5:i<900?5.0:i<1000?4.5:i<1100?4.25:i<1200?4.0:3.75);
+S.vkospi=ou(N,17.4,19,.03,.9,10);S.vix=ou(N,19.8,18,.03,.9,10);
+S.turn=ou(N,19.8,15,.02,.8,6);S.ma200=ou(N,46,50,.03,2.8,3).map(v=>Math.min(97,v));
+S.credK=gen(N,21.6,.006,.0005);S.credQ=gen(N,9.7,.007,.0003);S.dep=gen(N,87.4,.008,.0004);
+S.mcap=gen(N,3050,.0085,.0004); // KOSPI+KOSDAQ 시총(조원 가정)
+S.credRatio=S.credK.map((v,i)=>(v+S.credQ[i])/S.mcap[i]*100);
+S.forced=ou(N,126,110,.06,22,20);
+S.forShare=ou(N,36.4,35,.01,.12,28);
+S.perK=ou(N,13.8,11.5,.004,.12,7);S.pbrK=ou(N,1.42,1.05,.004,.012,.7);S.perQ=ou(N,27.5,24,.004,.35,12);S.pbrQ=ou(N,2.61,2.3,.004,.03,1.4);
+S.fg=ou(N,38,50,.03,2.5,2).map(v=>Math.min(98,v));
+/* ---- 실데이터 덮어쓰기 (data.js 가 있고 해당 키가 수집된 경우만) ---- */
+const REAL=new Set();
+function real(key){const r=DATA.series[key];if(!r)return null;const m=new Map(r.dates.map((d,i)=>[d,r.close[i]]));let prev=r.close[0];return DATES.map(d=>{const v=m.get(ds(d));if(v!=null)prev=v;return prev})}
+['nikkei','shcomp','usdkrw','jpykrw','eurkrw','cnykrw','dxy','wti','brent','gold','copper','btc','vix','us2','us10','us30','ust','polUS','kr3','kr10','kr30','cd','aa','polKR','credK','credQ','dep','forced'].forEach(k=>{const r=real(k);if(r){S[k]=r;REAL.add(k)}});
+[['kospi_per','perK'],['kospi_pbr','pbrK'],['kosdaq_per','perQ'],['kosdaq_pbr','pbrQ']].forEach(([k,sk])=>{const r=real(k);if(r){S[sk]=r;REAL.add(sk)}});
+{const a=real('kospi_turn'),b=real('kosdaq_turn');if(a&&b){S.turn=a.map((v,i)=>v+b[i]);REAL.add('turn')}}
+{const a=real('kospi_mcap'),b=real('kosdaq_mcap');if(a&&b){S.mcap=a.map((v,i)=>v+b[i]);REAL.add('mcap')}}
+if(REAL.has('credK')&&REAL.has('credQ')&&REAL.has('mcap')){S.credRatio=S.credK.map((v,i)=>(v+S.credQ[i])/S.mcap[i]*100);REAL.add('credRatio')}
+if(REAL.has('aa')&&REAL.has('kr3')){S.cspread=S.aa.map((v,i)=>(v-S.kr3[i])*100);REAL.add('cspread')}
+const SNAP=DATA.snapshot||{};
+const YI=DATES.findIndex(d=>d.getFullYear()===DATES[N-1].getFullYear());
+function lastN(key,n){const r=DATA.series[key];return r?{d:r.dates.slice(-n).map(s=>new Date(s+'T00:00:00')),v:r.close.slice(-n).map(Math.round)}:null}
+[['kospi',0],['kosdaq',1],['kospi200',2],['sp500',3],['nasdaq',4]].forEach(([k,i])=>{const r=real(k);if(r){IDX[i].s=r;IDX[i].real=true}});
+[['kospi',0],['kosdaq',1],['kospi200',2]].forEach(([k,i])=>{const v=(SNAP.valuation||{})[k];if(v)Object.assign(IDX[i],{per:v.per,pbr:v.pbr,div:v.div,roe:v.roe,pct:v.per_pct,fper:null,realVal:true})});
+const chg=(a,k=1)=>pct(a[a.length-1],a[a.length-1-k]);
+const bp=(a,k=1)=>(a[a.length-1]-a[a.length-1-k])*100;
+
+/* ============ SVG 헬퍼 ============ */
+function spark(data,color){
+  const w=160,h=30,lo=Math.min(...data),hi=Math.max(...data),rg=hi-lo||1;
+  const p=data.map((v,i)=>`${(i/(data.length-1)*w).toFixed(1)},${(h-3-(v-lo)/rg*(h-6)).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function tickFmt(v){const a=Math.abs(v);return a>=1000?fmt(v,0):a>=100?fmt(v,0):a>=10?fmt(v,1):fmt(v,2)}
+function lineChart(host,o){
+  host.innerHTML='';const W=host.clientWidth||600,H=o.h||230;
+  const hasR=o.series.some(s=>s.axis==='r');
+  const m={l:46,r:hasR?46:12,t:10,b:22},iw=W-m.l-m.r,ih=H-m.t-m.b,n=o.dates.length;
+  const ext=ax=>{const a=[];o.series.filter(s=>(s.axis||'l')===ax).forEach(s=>{for(const v of s.data)a.push(v)});if(ax==='l'&&o.hlines)o.hlines.forEach(h=>a.push(h.y));if(!a.length)return[0,1];let lo=Math.min(...a),hi=Math.max(...a);const p=(hi-lo)*.08||1;return[lo-p,hi+p]};
+  const E={l:ext('l'),r:ext('r')};
+  const X=i=>m.l+iw*i/(n-1),Y=(ax,v)=>m.t+ih*(1-(v-E[ax][0])/(E[ax][1]-E[ax][0]));
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  for(let i=0;i<=4;i++){const y=m.t+ih*i/4;s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y}" y2="${y}" stroke="#1a2531"/>`;
+    s+=`<text x="${m.l-6}" y="${y+4}" text-anchor="end" fill="#6b7b8e" font-size="10.5">${tickFmt(E.l[1]-(E.l[1]-E.l[0])*i/4)}</text>`;
+    if(hasR)s+=`<text x="${W-m.r+6}" y="${y+4}" fill="#6b7b8e" font-size="10.5">${tickFmt(E.r[1]-(E.r[1]-E.r[0])*i/4)}</text>`}
+  const nt=Math.min(5,n);for(let i=0;i<nt;i++){const k=Math.round((n-1)*i/(nt-1));s+=`<text x="${X(k)}" y="${H-6}" text-anchor="${i==0?'start':i==nt-1?'end':'middle'}" fill="#6b7b8e" font-size="10.5">${ds(o.dates[k]).slice(2)}</text>`}
+  if(o.shadeNeg!=null){const d=o.series[o.shadeNeg].data;let st=null;for(let i=0;i<=n;i++){const neg=i<n&&d[i]<0;if(neg&&st==null)st=i;if(!neg&&st!=null){s+=`<rect x="${X(st)}" y="${m.t}" width="${Math.max(2,X(i-1)-X(st))}" height="${ih}" fill="#ff5b5b" opacity=".13"/>`;st=null}}}
+  if(o.hlines)o.hlines.forEach(h=>{const y=Y('l',h.y);s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y}" y2="${y}" stroke="${h.color||'#8696a9'}" stroke-dasharray="${h.dash||'4 4'}" opacity=".8"/><text x="${W-m.r-3}" y="${y-3}" text-anchor="end" fill="${h.color||'#8696a9'}" font-size="10">${h.label||''}</text>`});
+  o.series.forEach(sr=>{const ax=sr.axis||'l';const pts=sr.data.map((v,i)=>`${X(i).toFixed(1)},${Y(ax,v).toFixed(1)}`);
+    if(sr.area)s+=`<polygon points="${m.l},${m.t+ih} ${pts.join(' ')} ${X(n-1)},${m.t+ih}" fill="${sr.color}" opacity=".12"/>`;
+    s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${sr.color}" stroke-width="${sr.w||1.6}" ${sr.dash?`stroke-dasharray="${sr.dash}"`:''} stroke-linejoin="round"/>`});
+  s+=`<line id="cx" y1="${m.t}" y2="${m.t+ih}" stroke="#8696a9" stroke-dasharray="3 3" style="display:none"/><rect x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent" id="ov"/></svg>`;
+  host.innerHTML=s+'<div class="tip"></div>';
+  const tip=$('.tip',host),cx=$('#cx',host),ov=$('#ov',host),f=o.fmt||(v=>fmt(v));
+  ov.addEventListener('mousemove',e=>{const r=ov.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*iw;const i=Math.max(0,Math.min(n-1,Math.round(px/iw*(n-1))));
+    cx.setAttribute('x1',X(i));cx.setAttribute('x2',X(i));cx.style.display='';
+    tip.innerHTML=`<div class="d">${ds(o.dates[i])}</div>`+o.series.filter(a=>a.name).map(a=>`<div><i style="background:${a.color}"></i>${a.name} <b>${(a.fmt||f)(a.data[i])}</b>${a.raw?` <span style="color:var(--mute)">· 실제 ${fmt(a.raw[i])}</span>`:''}</div>`).join('');
+    tip.style.display='block';const tw=tip.offsetWidth;let lx=X(i)+12;if(lx+tw>W)lx=X(i)-tw-12;tip.style.left=lx+'px';tip.style.top='8px'});
+  ov.addEventListener('mouseleave',()=>{tip.style.display='none';cx.style.display='none'});
+}
+function barChart(host,o){ // 그룹 막대
+  host.innerHTML='';const W=host.clientWidth||600,H=o.h||230,m={l:50,r:8,t:8,b:22},iw=W-m.l-m.r,ih=H-m.t-m.b,n=o.dates.length,k=o.series.length;
+  const all=o.series.flatMap(s=>s.data);let hi=Math.max(...all,0),lo=Math.min(...all,0);const p=(hi-lo)*.06;hi+=p;lo-=p;
+  const Y=v=>m.t+ih*(1-(v-lo)/(hi-lo));let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  for(let i=0;i<=4;i++){const v=hi-(hi-lo)*i/4,y=Y(v);s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y}" y2="${y}" stroke="#1a2531"/><text x="${m.l-6}" y="${y+4}" text-anchor="end" fill="#6b7b8e" font-size="10.5">${fmt(v,0)}</text>`}
+  s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="#4a5b6e"/>`;
+  const gw=iw/n,bw=Math.max(2,gw*.8/k);
+  o.dates.forEach((d,i)=>{o.series.forEach((sr,j)=>{const v=sr.data[i],x=m.l+gw*i+gw*.1+bw*j,y0=Y(0),y1=Y(v);
+    s+=`<rect x="${x.toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}" width="${(bw-.5).toFixed(1)}" height="${Math.abs(y1-y0).toFixed(1)}" fill="${sr.color}" opacity=".9"><title>${ds(d)} ${sr.name} ${sgn(v,0)}억</title></rect>`});
+    if(i%4===0)s+=`<text x="${m.l+gw*(i+.5)}" y="${H-6}" text-anchor="middle" fill="#6b7b8e" font-size="10.5">${d.getMonth()+1}/${d.getDate()}</text>`});
+  host.innerHTML=s+'</svg>';
+}
+function gauge(host,v){
+  const w=210,h=130,cx=105,cy=110,r=84;const pt=(a,rr=r)=>[cx+rr*Math.cos(Math.PI*(1-a)),cy-rr*Math.sin(Math.PI*(1-a))];
+  const cols=['#4a8dff','#6aa8c9','#8696a9','#d99a6c','#ff5b5b'];let s=`<svg width="${w}" height="${h}">`;
+  for(let i=0;i<5;i++){const a0=i/5,a1=(i+1)/5-.008,[x0,y0]=pt(a0),[x1,y1]=pt(a1),[x2,y2]=pt(a1,r-14),[x3,y3]=pt(a0,r-14);
+    s+=`<path d="M${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1} L${x2},${y2} A${r-14},${r-14} 0 0 0 ${x3},${y3}Z" fill="${cols[i]}" opacity=".75"/>`}
+  const [nx,ny]=pt(v/100,r-22);
+  s+=`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="6" fill="#fff"/>`;
+  const lab=v<20?'극단적 공포':v<40?'공포':v<60?'중립':v<80?'탐욕':'극단적 탐욕';
+  s+=`<text x="${cx}" y="${cy-30}" text-anchor="middle" fill="#fff" font-size="30" font-weight="700">${Math.round(v)}</text><text x="${cx}" y="${cy+20}" text-anchor="middle" fill="#8696a9" font-size="12">${lab}</text></svg>`;
+  host.innerHTML=s;
+}
+const stat=(name,val,sub,series,o={})=>{const c=o.changePct!=null?o.changePct:(series?chg(series):0);
+  return `<div class="stat"><div class="n"><span>${name}</span>${o.tag?`<span>${o.tag}</span>`:''}</div>
+  <div class="v">${val}<small>${o.unit||''}</small></div>
+  <div class="ch ${cls(o.invert?-c:c)}">${o.chText||`${arrow(c)} ${sgn(c)}%`}</div>
+  ${sub?`<div class="sub">${sub}</div>`:''}${series?spark(series.slice(-(o.sparkN||90)),'var(--c1)'):''}</div>`};
+
+/* ============ 헤더 ============ */
+$('#asof').textContent=`기준일 ${ds(DATES[N-1])} (샘플)`;
+const rs=$('#rangeSeg');Object.keys(RANGES).forEach(k=>{const b=el('button',k===RANGE?'on':'',k);b.onclick=()=>{RANGE=k;[...rs.children].forEach(x=>x.classList.toggle('on',x===b));renderCharts()};rs.append(b)});
+const cs=$('#colorSeg');[['kr','상승 빨강'],['global','상승 초록']].forEach(([k,t],i)=>{const b=el('button',i?'':'on',t);b.onclick=()=>{document.body.dataset.color=k;[...cs.children].forEach(x=>x.classList.toggle('on',x===b))};cs.append(b)});
+
+/* ============ 티커 ============ */
+const tickItems=[
+ ['KOSPI',IDX[0].s,0],['KOSDAQ',IDX[1].s,2],['S&P500',IDX[3].s,2],['NASDAQ',IDX[4].s,2],['닛케이225',S.nikkei,0],['상해종합',S.shcomp,2],
+ ['USD/KRW',S.usdkrw,2],['DXY',S.dxy,2],['한국10Y',S.kr10,3],['미국10Y',S.us10,3],['WTI',S.wti,2],['금',S.gold,1],['비트코인',S.btc,0],['VIX',S.vix,2]];
+const isReal=s=>IDX.some(o=>o.real&&o.s===s)||Object.keys(S).some(k=>REAL.has(k)&&S[k]===s);
+const tkHtml=tickItems.map(([n,s,d])=>{const c=chg(s);return `<div class="tk"><span>${n}${isReal(s)?'':'*'}</span><b>${fmt(last(s),d)}</b><em class="${cls(c)}" style="font-style:normal">${arrow(c)} ${fmt(Math.abs(c))}%</em></div>`}).join('');
+$('#ticker').innerHTML=tkHtml+tkHtml;
+
+/* ============ 시장 요약 ============ */
+const fgScore=last(S.fg);
+$('#brief').innerHTML=`<b>오늘의 한 줄 시황 (샘플)</b> &nbsp; KOSPI는 외국인 순매수 전환에 반도체 주도로 반등, 원/달러는 1,450원대에서 등락. 미국 10년 금리 4%대 초반 유지 속 이번 주 CPI 발표 대기. 위험선호는 <b>'공포' 구간(${Math.round(fgScore)})</b>으로 단기 반등 여지와 변동성 확대 가능성이 공존.`;
+gauge($('#gauge'),fgScore);
+const sigs=[['VKOSPI',last(S.vkospi),'pt',100-(last(S.vkospi)-10)*4],['VIX',last(S.vix),'pt',100-(last(S.vix)-10)*4],['신용스프레드',last(S.cspread),'bp',55],['외국인 수급',1830,'억',62],['시장 폭(200일선)',last(S.ma200),'%',last(S.ma200)],['모멘텀(125일)',chg(IDX[0].s,125),'%',60],['풋/콜 비율',0.92,'',34]];
+$('#sigs').innerHTML=sigs.map(([n,v,u,sc])=>{sc=Math.max(3,Math.min(97,sc));return `<div class="sig"><span>${n}</span><div class="tr"><i style="left:${sc}%"></i></div><em>${fmt(v,u==='억'?0:1)}${u==='%'?'%':''}</em></div>`}).join('');
+/* ---- 실데이터 기반 위험선호 지수·시황 (각 신호 = 최근 5년 분포 내 백분위, 높을수록 탐욕) ---- */
+const pctRank=(a,x)=>a.filter(v=>v<x).length/a.length*100;
+const cl3=v=>Math.max(3,Math.min(97,v));
+const FS=DATA.series.flow_foreign;
+const f5=FS?(()=>{const c=FS.close,r=[];for(let i=4;i<c.length;i++)r.push(c[i]+c[i-1]+c[i-2]+c[i-3]+c[i-4]);return r})():null;
+const kS=IDX[0].s,ma125=kS.map((_,i)=>{const a=kS.slice(Math.max(0,i-124),i+1);return kS[i]/(a.reduce((x,y)=>x+y,0)/a.length)});
+const brd=SNAP.breadth&&SNAP.breadth.KOSPI;
+const sigs2=[
+ ['VKOSPI','N/A',null],
+ ['VIX',REAL.has('vix')?fmt(last(S.vix),1):'N/A',REAL.has('vix')?cl3(100-pctRank(S.vix,last(S.vix))):null],
+ ['신용스프레드',REAL.has('cspread')?fmt(last(S.cspread),0)+'bp':'N/A',REAL.has('cspread')?cl3(100-pctRank(S.cspread,last(S.cspread))):null],
+ ['외국인 수급(5일)',f5?sgn(last(f5),0)+'억':'N/A',f5?cl3(pctRank(f5,last(f5))):null],
+ ['시장 폭(상승비율)',brd?`${brd.up}/${brd.down}`:'N/A',brd?cl3(brd.up/(brd.up+brd.down)*100):null],
+ ['모멘텀(125일선比)',IDX[0].real?sgn((last(ma125)-1)*100,1)+'%':'N/A',IDX[0].real?cl3(pctRank(ma125,last(ma125))):null],
+ ['풋/콜 비율','N/A',null]];
+const scs=sigs2.filter(s=>s[2]!=null).map(s=>s[2]);
+const fg2=scs.length?scs.reduce((a,b)=>a+b)/scs.length:fgScore;
+gauge($('#gauge'),fg2);
+$('#sigs').innerHTML=sigs2.map(([n,v,s])=>`<div class="sig"${s==null?' style="opacity:.45"':''}><span>${n}</span><div class="tr">${s==null?'':`<i style="left:${s}%"></i>`}</div><em>${v}</em></div>`).join('')+`<div class="note" style="margin:2px 0 0">점수=최근 5년 분포 내 백분위 · N/A=데이터 소스 없음(합성에서 제외)</div>`;
+const fgLabel=v=>v<20?'극단적 공포':v<40?'공포':v<60?'중립':v<80?'탐욕':'극단적 탐욕';
+const fl1=FS?`외국인 ${last(FS.close)>=0?'순매수':'순매도'} ${fmt(Math.abs(last(FS.close)),0)}억(KOSPI+KOSDAQ). `:'';
+if(KS)$('#brief').innerHTML=`<b>${ds(DATES[N-1])} 시황 (자동 생성)</b> &nbsp; KOSPI ${fmt(last(kS))} (<span class="${cls(chg(kS))}">${sgn(chg(kS))}%</span>), KOSDAQ ${fmt(last(IDX[1].s))} (<span class="${cls(chg(IDX[1].s))}">${sgn(chg(IDX[1].s))}%</span>). ${fl1}원/달러 ${fmt(last(S.usdkrw),1)}원, 국고10Y ${fmt(last(S.kr10),2)}% · 미국10Y ${fmt(last(S.us10),2)}%. 위험선호 지수 <b>${fgLabel(fg2)}(${Math.round(fg2)})</b>.`;
+function valTable(){
+  const head=`<thead><tr><th>지수</th><th>종가</th><th>등락</th><th>1M</th><th>YTD</th><th>PER</th><th>선행PER</th><th>PBR</th><th>배당률</th><th>ROE</th><th>PER 10년 백분위</th></tr></thead>`;
+  const body=IDX.map(o=>{const c=chg(o.s),m1=chg(o.s,21),y=pct(last(o.s),o.s[Math.max(0,YI-1)]);
+    return `<tr><td><b>${o.k}</b>${o.realVal?'':'<span class="flat" title="PER·PBR 등은 샘플 값">*</span>'}</td><td>${fmt(last(o.s))}</td><td class="${cls(c)}">${arrow(c)} ${fmt(Math.abs(c))}%</td><td class="${cls(m1)}">${sgn(m1,1)}%</td><td class="${cls(y)}">${sgn(y,1)}%</td>
+    <td>${fmt(o.per,1)}</td><td>${fmt(o.fper,1)}</td><td>${fmt(o.pbr)}</td><td>${fmt(o.div,1)}%</td><td>${fmt(o.roe,1)}%</td>
+    <td><span class="pbar"><i style="width:${o.pct}%;background:${o.pct>80?'var(--up)':o.pct<30?'var(--down)':'var(--accent)'}"></i></span>${o.pct}%</td></tr>`}).join('');
+  $('#valTable').innerHTML=head+`<tbody>${body}</tbody>`;
+}valTable();
+
+/* ============ 주식시장 ============ */
+const idxSel=new Set(['KOSPI']);
+const idxList=[...IDX.map(o=>({k:o.k,s:o.s,color:o.color,real:!!o.real})),{k:'닛케이225',s:S.nikkei,color:'var(--c1)',real:REAL.has('nikkei')},{k:'상해종합',s:S.shcomp,color:'var(--c2)',real:REAL.has('shcomp')}];
+function idxChips(){const h=$('#idxChips');h.innerHTML='';idxList.forEach(o=>{const b=el('button','chip'+(idxSel.has(o.k)?' on':''),o.k);b.style.setProperty('--cc',o.color);b.onclick=()=>{if(idxSel.has(o.k)){if(idxSel.size>1)idxSel.delete(o.k)}else idxSel.add(o.k);idxChips();renderCharts()};h.append(b)})}idxChips();
+const sectors=[['반도체',22,1.8],['금융',9,.9],['2차전지',7,-1.2],['자동차',6,.6],['바이오',6,-.4],['조선/방산',6,2.4],['인터넷/플랫폼',5,-.8],['화학',3,-.9],['음식료/유통',3,.4],['철강',2,.2],['건설',2,-.3],['유틸리티',2,.1],['통신',2,0],['엔터/게임',2,-1.5]];
+const secTot=SNAP.sectors?SNAP.sectors.reduce((a,x)=>a+x.mcap,0):0;
+const sectorsUse=SNAP.sectors?SNAP.sectors.map(x=>[x.name,Math.max(1.5,x.mcap/secTot*100),x.chg]).sort((a,b)=>b[1]-a[1]):sectors;
+$('#heat').innerHTML=sectorsUse.map(([n,w,c])=>{const a=Math.min(1,Math.abs(c)/2.5)*70+12,col=c>0?'var(--up)':c<0?'var(--down)':'#3a4656';
+  return `<div class="tile" style="flex:${w} 1 ${Math.min(w*7,160)}px;background:color-mix(in srgb,${col} ${c===0?100:a}%,#141c26)"><b>${n}</b><span>${sgn(c)}%</span></div>`}).join('');
+const tops=[['삼성전자',98500,1.9,13.1,9.8,1.35,51.8,588],['SK하이닉스',412000,2.6,9.8,7.4,2.4,54.1,300],['LG에너지솔루션',385000,-1.4,42.0,28.5,3.8,4.2,90],['현대차',261000,.8,6.2,5.8,.72,34.1,55],['삼성바이오로직스',1020000,-.5,52.4,38.0,6.1,12.0,73],['KB금융',112500,1.1,7.4,6.6,.62,74.1,45],['한화에어로스페이스',890000,3.2,24.8,18.2,5.3,24.0,42],['NAVER',241000,-.9,25.1,19.9,1.5,50.3,38]];
+const topsUse=SNAP.tops?SNAP.tops.filter(t=>!/우[A-Z]?$/.test(t.name)).slice(0,8).map(t=>[t.name,t.price,t.chg,t.per||null,null,t.pbr||null,t.foreign,t.mcap]):tops;
+$('#topTable').innerHTML=`<thead><tr><th>종목</th><th>현재가</th><th>등락</th><th>PER</th><th>선행PER</th><th>PBR</th><th>외국인 보유</th><th>시총(조)</th></tr></thead><tbody>${topsUse.map(t=>`<tr><td><b>${t[0]}</b></td><td>${fmt(t[1],0)}</td><td class="${cls(t[2])}">${arrow(t[2])} ${fmt(Math.abs(t[2]))}%</td><td>${fmt(t[3],1)}</td><td>${fmt(t[4],1)}</td><td>${fmt(t[5])}</td><td>${fmt(t[6],1)}%</td><td>${fmt(t[7],0)}</td></tr>`).join('')}</tbody>`;
+
+/* ============ 밸류에이션 ============ */
+let vMk='KOSPI',vMt='PER';
+function valChips(){
+  [['valMk',['KOSPI','KOSDAQ'],()=>vMk,v=>vMk=v],['valMt',['PER','PBR'],()=>vMt,v=>vMt=v]].forEach(([id,list,get,set])=>{const h=$('#'+id);h.innerHTML='';list.forEach(k=>{const b=el('button','chip'+(get()===k?' on':''),k);b.onclick=()=>{set(k);valChips();renderCharts()};h.append(b)})})}
+valChips();
+const valSeries=()=>vMk==='KOSPI'?(vMt==='PER'?S.perK:S.pbrK):(vMt==='PER'?S.perQ:S.pbrQ);
+function valCards(){
+  const cards=[];[['KOSPI',S.perK,S.pbrK],['KOSDAQ',S.perQ,S.pbrQ]].forEach(([n,p,b])=>{
+    const mean=p.reduce((a,c)=>a+c,0)/N,sd=Math.sqrt(p.reduce((a,c)=>a+(c-mean)**2,0)/N),z=(last(p)-mean)/sd;
+    cards.push(stat(n+' PER',fmt(last(p),1),`5년 평균 ${fmt(mean,1)} · Z=${sgn(z,1)}`,p,{chText:`${arrow(z)} ${sgn(z,1)}σ 대비 평균`,changePct:z,sparkN:250}));
+    const mb=b.reduce((a,c)=>a+c,0)/N;cards.push(stat(n+' PBR',fmt(last(b)),`5년 평균 ${fmt(mb)}`,b,{chText:`${sgn(pct(last(b),mb),1)}% 대비 평균`,changePct:last(b)-mb,sparkN:250}))});
+  const erp=100/IDX[0].per-last(S.kr10);const erpM=S.perK.reduce((a,p,i)=>a+(100/p-S.kr10[i]),0)/N;cards.push(stat('KOSPI ERP',fmt(erp),'1/PER − 국고10Y',null,{unit:'%p',chText:`5년 평균 ${sgn(erpM)}%p`,changePct:erp-erpM}));
+  cards.push(stat('버핏지수(한국)','N/A','시총/GDP · 데이터 소스 없음',null,{chText:'—',changePct:0}));
+  $('#valCards').innerHTML=cards.join('');
+}valCards();
+
+/* ============ 수급 ============ */
+const F3=['flow_foreign','flow_inst','flow_retail'].map(k=>lastN(k,20));
+let FD=DATES.slice(-20),flowF,flowI,flowP;
+if(F3.every(Boolean)){FD=F3[0].d;[flowF,flowI,flowP]=F3.map(x=>x.v);REAL.add('flows')}
+else{flowF=Array.from({length:20},(_,i)=>Math.round(norm()*2600+(i>12?900:-300)));flowI=Array.from({length:20},()=>Math.round(norm()*1900-100));flowP=flowF.map((f,i)=>-(f+flowI[i])+Math.round(norm()*600))}
+const sum=(a,k)=>a.slice(-k).reduce((x,y)=>x+y,0);
+$('#flowTable').innerHTML=`<thead><tr><th>구분</th><th>1D</th><th>5D</th><th>20D</th></tr></thead><tbody>${[['외국인',flowF],['기관',flowI],['개인',flowP]].map(([n,a])=>`<tr><td><b>${n}</b></td>${[1,5,20].map(k=>`<td class="${cls(sum(a,k))}">${sgn(sum(a,k),0)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+
+/* ============ 신용·자금 ============ */
+const cr=S.credK,cq=S.credQ;
+$('#creditCards').innerHTML=[
+ stat('신용융자 잔고(합계)',fmt(last(cr)+last(cq),1),'전일 대비 +0.12조',cr.map((v,i)=>v+cq[i]),{unit:'조원',tag:'금융투자협회'}),
+ stat('KOSPI 신용잔고',fmt(last(cr),1),'',cr,{unit:'조원'}),
+ stat('KOSDAQ 신용잔고',fmt(last(cq),1),'',cq,{unit:'조원'}),
+ stat('투자자예탁금',fmt(last(S.dep),1),'',S.dep,{unit:'조원'}),
+ stat('신용잔고/시총',fmt(last(S.credRatio),2),'5년 평균 '+fmt(S.credRatio.reduce((a,c)=>a+c)/N,2)+'%',S.credRatio,{unit:'%',changePct:chg(S.credRatio),invert:true}),
+ stat('반대매매(일)',fmt(last(S.forced),0),'20일 평균 '+fmt(sum(S.forced,20)/20,0)+'억',S.forced,{unit:'억원',invert:true}),
+].join('');
+
+/* ============ 시장 폭 ============ */
+const bq=SNAP.breadth;const adv=bq?[bq.KOSPI.up,bq.KOSPI.flat,bq.KOSPI.down]:[612,58,287];
+$('#breadthBox').innerHTML=`<div class="stat" style="border:0;padding:0;background:none"><div class="n"><span>KOSPI 상승 / 보합 / 하락</span></div>
+ <div class="breadth"><i style="flex:${adv[0]};background:var(--up)"></i><i style="flex:${adv[1]};background:#4a5b6e"></i><i style="flex:${adv[2]};background:var(--down)"></i></div>
+ <div style="display:flex;justify-content:space-between"><span class="up">▲ ${adv[0]}</span><span class="flat">${adv[1]}</span><span class="down">▼ ${adv[2]}</span></div></div>
+ <table style="margin-top:12px"><tbody>
+ <tr><td>52주 신고가 / 신저가</td><td class="flat">N/A</td></tr>
+ <tr><td>상한가 / 하한가</td><td>${bq?`<span class="up">${bq.KOSPI.upper}</span> / <span class="down">${bq.KOSPI.lower}</span>`:'-'}</td></tr>
+ <tr><td>KOSDAQ 상승/하락</td><td>${bq?`<span class="up">${bq.KOSDAQ.up}</span> / <span class="down">${bq.KOSDAQ.down}</span>`:'-'}</td></tr>
+ <tr><td>거래대금 (KOSPI+KOSDAQ)</td><td>${fmt(last(S.turn),1)}조원</td></tr>
+ <tr><td>공매도 비중</td><td class="flat">N/A</td></tr>
+ <tr><td>프로그램 순매수</td><td class="flat">N/A</td></tr></tbody></table>`;
+
+/* ============ 금리 ============ */
+const rt=[['한국 국고 3Y',S.kr3],['한국 국고 10Y',S.kr10],['한국 국고 30Y',S.kr30],['한국 CD 91일',S.cd],['한국 회사채 AA- 3Y',S.aa],['미국 국채 2Y',S.us2],['미국 국채 10Y',S.us10],['미국 국채 30Y',S.us30]];
+$('#rateTable').innerHTML=`<thead><tr><th>구분</th><th>금리(%)</th><th>1D</th><th>1W</th><th>1M</th><th>1Y</th></tr></thead><tbody>${rt.map(([n,s])=>`<tr><td><b>${n}</b></td><td>${fmt(last(s),3)}</td>${[1,5,21,250].map(k=>{const v=bp(s,k);return `<td class="${cls(v)}">${sgn(v,1)}</td>`}).join('')}</tr>`).join('')}
+<tr><td><b>한국 기준금리</b></td><td>${fmt(last(S.polKR),3)}</td><td colspan="4" class="flat">한국은행 기준금리</td></tr>
+<tr><td><b>미국 FFR 상단</b></td><td>${fmt(last(S.polUS),3)}</td><td colspan="4" class="flat">연준 목표금리 상단</td></tr></tbody>`;
+
+/* ============ 환율·원자재 ============ */
+$('#fxCards').innerHTML=[
+ ['USD/KRW',S.usdkrw,2,'원'],['JPY100/KRW',S.jpykrw,2,'원'],['EUR/KRW',S.eurkrw,2,'원'],['CNY/KRW',S.cnykrw,2,'원'],['달러인덱스',S.dxy,2,''],
+ ['WTI',S.wti,2,'$'],['브렌트유',S.brent,2,'$'],['금',S.gold,1,'$/oz'],['구리',S.copper,2,'$/lb'],['비트코인',S.btc,0,'$']
+].map(([n,s,d,u])=>stat(n,fmt(last(s),d),'',s,{unit:u})).join('');
+
+/* ============ 거시 ============ */
+const mac=[ // 이름, 값, 단위, 직전, 시리즈종점, 변동폭, 다음발표, 반전(역해석)
+ ['한국 GDP 성장률(YoY)',1.9,'%',1.6,1.9,.35,'12-04 (3Q 잠정)'],['한국 CPI(YoY)',2.1,'%',2.3,2.1,.25,'12-03'],['한국 실업률',2.9,'%',2.8,2.9,.2,'12-10'],['한국 수출(YoY)',6.8,'%',4.1,6.8,3.5,'12-01'],
+ ['한국 소비자심리지수',101.4,'',99.8,101.4,3,'11-25'],['한국 제조업 BSI',74,'',72,74,4,'11-27'],['한국 경상수지',92.3,'억$',81.5,92.3,18,'12-08'],['한국 M2(YoY)',6.1,'%',5.9,6.1,.5,'12-12'],
+ ['미국 GDP(QoQ 연율)',2.4,'%',3.0,2.4,.7,'11-26'],['미국 CPI(YoY)',2.9,'%',3.0,2.9,.25,'11-12'],['미국 근원 PCE(YoY)',2.7,'%',2.8,2.7,.2,'11-26'],['미국 실업률',4.4,'%',4.3,4.4,.15,'12-04'],
+ ['미국 비농업 고용','+142','천명',178,142,35,'12-04'],['ISM 제조업 PMI',49.6,'',48.7,49.6,1.3,'12-01'],['미국 소매판매(MoM)',.3,'%',.5,.3,.4,'11-14'],['미시간 소비자심리',68.2,'',70.1,68.2,2.5,'11-21'],
+];
+$('#macroCards').innerHTML=mac.map(([n,v,u,p,e,vol,nx])=>{const raw=typeof v==='number'?v:e;const ser=ou(24,e,e,.15,vol);const d=raw-p;
+  return `<div class="stat"><div class="n"><span>${n}</span></div><div class="v">${typeof v==='number'?fmt(v,v%1?1:0):v}<small>${u}</small></div>
+  <div class="ch ${cls(d)}">${arrow(d)} ${sgn(d,1)} <span class="flat">(직전 ${typeof v==='number'?fmt(p,1):p})</span></div><div class="sub">다음 발표 ${nx}</div>${spark(ser,'var(--c1)')}</div>`}).join('');
+
+/* ---- 거시 카드: 실데이터 (ECOS·FRED) ---- */
+if(DATA.series.kr_cpi||DATA.series.us_cpi){
+const M=[['한국 GDP(YoY)','kr_gdp',1,'%'],['한국 CPI(YoY)','kr_cpi',1,'%'],['한국 실업률(계절조정)','kr_unemp',1,'%'],['한국 수출(YoY)','kr_export',1,'%'],
+['한국 소비자심리지수','kr_ccsi',1,''],['한국 경상수지','kr_ca',0,'억$'],['한국 M2(YoY)','kr_m2',1,'%'],['한국 제조업 BSI',null],
+['미국 GDP(QoQ 연율)','us_gdp',1,'%'],['미국 CPI(YoY)','us_cpi',1,'%'],['미국 근원 PCE(YoY)','us_pce',1,'%'],['미국 실업률','us_unemp',1,'%'],
+['미국 비농업 고용 증감','us_nfp',0,'천명'],['ISM 제조업 PMI',null],['미국 소매판매(MoM)','us_retail',1,'%'],['미시간 소비자심리','us_umich',1,'']];
+$('#macroCards').innerHTML=M.map(([n,k,d,u])=>{const r=k&&DATA.series[k];
+ if(!r)return `<div class="stat" style="opacity:.55"><div class="n"><span>${n}</span></div><div class="v">N/A</div><div class="sub">데이터 소스 없음</div></div>`;
+ const c=r.close,v=c[c.length-1],p=c[c.length-2],dd=v-p;
+ return `<div class="stat"><div class="n"><span>${n}</span></div><div class="v">${fmt(v,d)}<small>${u}</small></div><div class="ch ${cls(dd)}">${arrow(dd)} ${sgn(dd,d)} <span class="flat">(직전 ${fmt(p,d)})</span></div><div class="sub">기준 ${r.dates[r.dates.length-1]}</div>${spark(c.slice(-24),'var(--c1)')}</div>`}).join('')}
+/* ============ 캘린더 ============ */
+const cal=[['11-10','🇺🇸','미국 10월 CPI (YoY)','2.9%','3.0%','3.0%',3],['11-10','🇰🇷','한국 10월 실업률','2.9%','2.8%','2.9%',2],['11-12','🇺🇸','연준 의장 연설','-','-','-',3],['11-14','🇺🇸','10월 소매판매 (MoM)','0.3%','0.5%','0.4%',2],['11-18','🇰🇷','10월 수출입동향(1~15일)','-','-','-',2],['11-21','🇺🇸','미시간 소비자심리 확정치','68.2','70.1','69.0',1],['11-27','🇰🇷','한국은행 금융통화위원회','2.50%','2.50%','2.50% 동결',3],['11-26','🇺🇸','3분기 GDP · 근원 PCE','2.4%','3.0%','2.4%',3],['12-01','🇰🇷','11월 수출 / 🇺🇸 ISM 제조업','-','-','-',3],['12-09','🇺🇸','FOMC 금리결정','3.75%','3.75%','3.50% 인하 예상',3]];
+$('#calTable').innerHTML=`<thead><tr><th>일자</th><th>국가</th><th>이벤트</th><th>직전</th><th>이전 주기</th><th>예상</th><th>중요도</th></tr></thead><tbody>${cal.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td><td>${c[4]}</td><td>${c[5]}</td><td class="dots">${'●'.repeat(c[6])}<span style="color:#2a3746">${'●'.repeat(3-c[6])}</span></td></tr>`).join('')}</tbody>`;
+
+/* ============ 차트 렌더 ============ */
+function renderCharts(){
+  const D=dsl();
+  // 지수
+  const sel=idxList.filter(o=>idxSel.has(o.k)),multi=sel.length>1;
+  lineChart($('#idxChart'),{dates:D,h:300,series:sel.map(o=>{const d=sl(o.s);return{name:o.k,color:o.color,area:!multi,data:multi?d.map(v=>v/d[0]*100):d,raw:multi?d:null}}),fmt:v=>fmt(v)});
+  $('#idxLegend').innerHTML=sel.map(o=>`<span><i style="background:${o.color}"></i>${o.k}${multi?'':''}</span>`).join('')+(multi?'<span>(시작=100)</span>':'');
+  // 밸류에이션
+  const full=valSeries(),mean=full.reduce((a,c)=>a+c,0)/N,sd=Math.sqrt(full.reduce((a,c)=>a+(c-mean)**2,0)/N);
+  lineChart($('#valChart'),{dates:D,h:290,series:[{name:vMk+' '+vMt,color:'var(--c1)',data:sl(full),w:2}],hlines:[{y:mean,label:'평균 '+fmt(mean),color:'#8696a9'},{y:mean+sd,label:'+1σ',color:'#f5a524'},{y:mean-sd,label:'-1σ',color:'#f5a524'},{y:mean+2*sd,label:'+2σ',color:'#f472b6'},{y:mean-2*sd,label:'-2σ',color:'#f472b6'}].filter(h=>h.y>0)});
+  // 수급
+  barChart($('#flowChart'),{dates:FD,h:290,series:[{name:'외국인',color:'var(--c2)',data:flowF},{name:'기관',color:'var(--c3)',data:flowI},{name:'개인',color:'var(--c4)',data:flowP}]});
+  lineChart($('#forChart'),{dates:D,h:150,series:[{name:'외국인 보유',color:'var(--c2)',data:sl(S.forShare),area:true}],fmt:v=>fmt(v)+'%'});
+  // 신용
+  lineChart($('#creditChart'),{dates:D,h:260,series:[{name:'신용 KOSPI',color:'var(--c2)',data:sl(S.credK),fmt:v=>fmt(v,1)+'조'},{name:'신용 KOSDAQ',color:'var(--c5)',data:sl(S.credQ),fmt:v=>fmt(v,1)+'조'},{name:'예탁금',color:'var(--c1)',data:sl(S.dep),axis:'r',fmt:v=>fmt(v,1)+'조'}]});
+  lineChart($('#forcedChart'),{dates:D,h:260,series:[{name:'신용/시총',color:'var(--c3)',data:sl(S.credRatio),fmt:v=>fmt(v,2)+'%'},{name:'반대매매',color:'var(--c1)',data:sl(S.forced),axis:'r',w:1,fmt:v=>fmt(v,0)+'억'}]});
+  // 시장 폭
+  lineChart($('#volChart'),{dates:D,h:200,series:[{name:'거래대금',color:'var(--c1)',data:sl(S.turn),area:true,fmt:v=>fmt(v,1)+'조'}]});
+  lineChart($('#ma200Chart'),{dates:D,h:200,series:[{name:'200일선 상회',color:'var(--c4)',data:sl(S.ma200),fmt:v=>fmt(v,1)+'%'}],hlines:[{y:80,label:'과열',color:'#ff5b5b'},{y:20,label:'과매도',color:'#4a8dff'}]});
+  // 금리
+  lineChart($('#krusChart'),{dates:D,h:230,series:[{name:'한국 10Y',color:'var(--c1)',data:sl(S.kr10),fmt:v=>fmt(v,3)+'%'},{name:'미국 10Y',color:'var(--c2)',data:sl(S.us10),fmt:v=>fmt(v,3)+'%'}]});
+  lineChart($('#spreadChart'),{dates:D,h:230,series:[{name:'10Y−2Y',color:'var(--c3)',data:sl(S.ust),fmt:v=>sgn(v,2)+'%p'}],shadeNeg:0,hlines:[{y:0,label:'0',color:'#8696a9',dash:'0'}]});
+  lineChart($('#policyChart'),{dates:D,h:220,series:[{name:'한국 기준금리',color:'var(--c1)',data:sl(S.polKR),fmt:v=>fmt(v,2)+'%'},{name:'미국 FFR 상단',color:'var(--c2)',data:sl(S.polUS),fmt:v=>fmt(v,2)+'%'}]});
+  lineChart($('#creditSpread'),{dates:D,h:220,series:[{name:'신용스프레드',color:'var(--c5)',data:sl(S.cspread),area:true,fmt:v=>fmt(v,0)+'bp'}]});
+  // 환율
+  lineChart($('#fxChart'),{dates:D,h:240,series:[{name:'USD/KRW',color:'var(--c1)',data:sl(S.usdkrw),fmt:v=>fmt(v,1)},{name:'DXY',color:'var(--c2)',data:sl(S.dxy),axis:'r',fmt:v=>fmt(v,2)}]});
+}
+/* ---- 패널별 데이터 출처 태그 ---- */
+const TXT={real:'실데이터',partial:'일부 실데이터',sample:'샘플'};
+const st=a=>a.every(Boolean)?'real':a.some(Boolean)?'partial':'sample';
+/* partial 로 표시되는 패널에서 "구체적으로 뭐가 샘플인가"를 태그 title(마우스오버)로 노출 */
+const NOTES={
+ '#gauge':'VKOSPI·풋/콜 비율 등 소스 없는 신호는 N/A 처리 후 합성에서 제외(표의 흐린 행 참고)',
+ '#valTable':'S&P500·NASDAQ 등 해외지수의 PER·PBR·배당·ROE는 샘플(종목명 옆 * 표시), 선행PER은 전 지수 공통 소스 없음(실데이터 행은 "-")',
+ '#valCards':'버핏지수(시총/GDP)는 소스 없어 N/A 카드로 표시, 나머지 PER·PBR 카드는 실데이터',
+ '#breadthBox':'52주 신고가/신저가·공매도 비중·프로그램 순매수는 소스 없어 표에 N/A로 표시',
+ '#topTable':'선행PER 컬럼은 소스 없어 "-"로 표시(나머지 컬럼은 실데이터)',
+ '#macro':'한국 제조업 BSI·ISM 제조업 PMI는 소스 없어 흐린 N/A 카드로 표시, 나머지는 ECOS·FRED 실데이터',
+};
+function tagAll(){
+  const sel=idxList.filter(o=>idxSel.has(o.k));
+  const R=k=>REAL.has(k);
+  const states={'#idxChart':st(sel.map(o=>o.real)),'#fxChart':st([R('usdkrw'),R('dxy')]),'#valTable':IDX[0].realVal?'partial':'sample',
+   '#valChart':st([R('perK'),R('pbrK'),R('perQ'),R('pbrQ')]),'#valCards':R('perK')?'partial':'sample',
+   '#flowChart':R('flows')?'real':'sample','#flowTable':R('flows')?'real':'sample',
+   '#breadthBox':SNAP.breadth?'partial':'sample','#volChart':R('turn')?'real':'sample','#heat':SNAP.sectors?'real':'sample','#topTable':SNAP.tops?'partial':'sample',
+   '#rateTable':st(['kr3','kr10','kr30','cd','aa','us2','us10','us30'].map(R)),'#krusChart':st([R('kr10'),R('us10')]),'#spreadChart':R('ust')?'real':'sample','#policyChart':st([R('polKR'),R('polUS')]),'#creditSpread':R('cspread')?'real':'sample',
+   '#creditChart':st([R('credK'),R('credQ'),R('dep')]),'#forcedChart':st([R('credRatio'),R('forced')]),
+   '#gauge':scs.length?'partial':'sample'};
+  document.querySelectorAll('.tag').forEach(t=>t.remove());
+  document.querySelectorAll('.panel').forEach(p=>{const h=$('.ph h3',p);if(!h)return;let s='sample',id='';for(const k in states)if($(k,p)){s=states[k];id=k}
+   const note=s==='partial'&&NOTES[id]?` title="${NOTES[id]}"`:'';
+   h.insertAdjacentHTML('afterend',`<span class="tag ${s}"${note}>${TXT[s]}${s==='partial'?' ⓘ':''}</span>`)});
+  const fxS=st(['usdkrw','jpykrw','eurkrw','cnykrw','dxy','wti','brent','gold','copper','btc'].map(k=>REAL.has(k)));
+  const creditS=st([R('credK'),R('credQ'),R('dep'),R('forced')]);
+  [['#fx',fxS],['#credit',creditS],['#macro',DATA.series.kr_cpi||DATA.series.us_cpi?'partial':'sample']].forEach(([id,s])=>{
+   const note=s==='partial'&&NOTES[id]?` title="${NOTES[id]}"`:'';
+   $(id+' h2').insertAdjacentHTML('beforeend',`<span class="tag ${s}"${note}>${TXT[s]}${s==='partial'?' ⓘ':''}</span>`)});
+}
+const _rc=renderCharts;renderCharts=function(){_rc();tagAll()};
+if(KS){$('.badge').textContent='실데이터 + 샘플 혼합';$('#asof').textContent=`기준일 ${ds(DATES[N-1])} · 수집 ${DATA.generated_at.replace('T',' ')}`}
+renderCharts();
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(renderCharts,120)});
+</script>
+</body>
+</html>
