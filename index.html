@@ -100,7 +100,7 @@ tbody tr:hover{background:var(--panel2)}
 .tag.real{color:#34d399;border-color:#1f6b52}.tag.partial{color:#a78bfa;border-color:#4b3d80;cursor:help}.tag.sample{color:#f5a524;border-color:#6b4a10}
 .note{color:var(--dim);font-size:11.5px;margin-top:8px}
 footer{color:var(--dim);font-size:11.5px;text-align:center;padding:20px}
-</style>
+#failBar{display:none;background:#3a1212;color:#ff8a8a;border-bottom:1px solid #7a2222;padding:8px 16px;font-size:12px;line-height:1.5}#failBar b{color:#ffb3b3}</style>
 </head>
 <body data-color="kr">
 <header>
@@ -115,6 +115,7 @@ footer{color:var(--dim);font-size:11.5px;text-align:center;padding:20px}
   <nav>
     <a href="#sum">시장 요약</a><a href="#stock">주식시장</a><a href="#val">밸류에이션</a><a href="#flow">수급</a><a href="#credit">신용·자금</a><a href="#breadth">시장 폭</a><a href="#rate">금리·채권</a><a href="#fx">환율·원자재</a><a href="#macro">거시경제</a><a href="#cal">캘린더</a>
   </nav>
+  <div id="failBar"></div>
 </header>
 <div class="ticker"><div class="tk-track" id="ticker"></div></div>
 
@@ -339,6 +340,7 @@ function real(key){const r=DATA.series[key];if(!r)return null;const m=new Map(r.
 {const a=real('kospi_mcap'),b=real('kosdaq_mcap');if(a&&b){S.mcap=a.map((v,i)=>v+b[i]);REAL.add('mcap')}}
 if(REAL.has('credK')&&REAL.has('credQ')&&REAL.has('mcap')){S.credRatio=S.credK.map((v,i)=>(v+S.credQ[i])/S.mcap[i]*100);REAL.add('credRatio')}
 if(REAL.has('aa')&&REAL.has('kr3')){S.cspread=S.aa.map((v,i)=>(v-S.kr3[i])*100);REAL.add('cspread')}
+function kst(t){const d=new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(t)?t:t+'Z');if(isNaN(d))return t;const k=new Date(d.getTime()+9*3600e3);return k.toISOString().slice(0,16).replace('T',' ')}
 const SNAP=DATA.snapshot||{};
 const YI=DATES.findIndex(d=>d.getFullYear()===DATES[N-1].getFullYear());
 function lastN(key,n){const r=DATA.series[key];return r?{d:r.dates.slice(-n).map(s=>new Date(s+'T00:00:00')),v:r.close.slice(-n).map(Math.round)}:null}
@@ -617,7 +619,15 @@ function tagAll(){
    $(id+' h2').insertAdjacentHTML('beforeend',`<span class="tag ${s}"${note}>${TXT[s]}${s==='partial'?' ⓘ':''}</span>`)});
 }
 const _rc=renderCharts;renderCharts=function(){_rc();tagAll()};
-if(KS){$('.badge').textContent='실데이터 + 샘플 혼합';$('#asof').textContent=`기준일 ${ds(DATES[N-1])} · 수집 ${DATA.generated_at.replace('T',' ')}`}
+if(KS){$('.badge').textContent='실데이터 + 샘플 혼합';$('#asof').textContent=`기준일 ${ds(DATES[N-1])} · 수집 ${kst(DATA.generated_at)} KST`}
+
+(function(){const st=DATA.status||{},bad=Object.entries(st).filter(([k,v])=>k!=='stale_kept'&&v&&v.ok===false);
+const stale=Object.values(DATA.series||{}).filter(x=>x.stale).length;if(!bad.length&&!stale)return;
+const NM={krx:'KRX(지수·수급·시총상위·업종)',yfinance:'Yahoo Finance',fred:'FRED',ecos:'한국은행 ECOS',freesis:'FreeSIS'};
+const base=SNAP.breadth&&SNAP.breadth.date?` 시총 상위·시장 폭·업종 표는 <b>${SNAP.breadth.date}</b> 기준의 이전 값입니다.`:'';
+const hint=(st.krx&&st.krx.ok===false)?' (KRX 로그인 실패 시 www.krx.co.kr 에서 비밀번호 변경 후 GitHub Secrets KRX_PW 갱신 필요)':'';
+const el=document.getElementById('failBar');el.style.display='block';
+el.innerHTML=`⚠ <b>일부 데이터 수집 실패</b>: ${bad.map(([k])=>NM[k]||k).join(', ')||'-'}${hint}.${base}${stale?` 이전 값을 유지한 시리즈 ${stale}개 (최신 아님).`:''}`})();
 renderCharts();
 let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(renderCharts,120)});
 </script>
