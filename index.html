@@ -143,6 +143,8 @@ footer{color:var(--dim);font-size:11.5px;text-align:center;padding:20px}
         <div class="chips" id="idxChips"></div><span class="src">2개 이상 선택 시 시작점=100 리베이스</span></div>
       <div class="chips" id="rateChips" style="margin:2px 0 6px"><span class="lbl" style="margin-right:6px">금리 겹쳐보기(우축 %)</span></div>
       <div class="chart" id="idxChart"></div><div class="legend" id="idxLegend"></div>
+      <div class="ph" style="margin-top:10px"><h3>낙폭 (고점 대비 · MDD)</h3><span class="src">선택 기간 내 직전 고점 대비 하락률</span></div>
+      <div class="chart" id="ddChart"></div><div class="legend" id="ddLegend"></div>
     </div>
     <div class="panel c4">
       <div class="ph"><h3>업종 히트맵</h3><span class="src">크기=시총 비중 · 색=등락률</span></div>
@@ -477,8 +479,8 @@ const sectorsUse=SNAP.sectors?SNAP.sectors.map(x=>[x.name,Math.max(1.5,x.mcap/se
 $('#heat').innerHTML=sectorsUse.map(([n,w,c])=>{const a=Math.min(1,Math.abs(c)/2.5)*70+12,col=c>0?'var(--up)':c<0?'var(--down)':'#3a4656';
   return `<div class="tile" style="flex:${w} 1 ${Math.min(w*7,160)}px;background:color-mix(in srgb,${col} ${c===0?100:a}%,#141c26)"><b>${n}</b><span>${sgn(c)}%</span></div>`}).join('');
 const tops=[['삼성전자',98500,1.9,13.1,9.8,1.35,51.8,588],['SK하이닉스',412000,2.6,9.8,7.4,2.4,54.1,300],['LG에너지솔루션',385000,-1.4,42.0,28.5,3.8,4.2,90],['현대차',261000,.8,6.2,5.8,.72,34.1,55],['삼성바이오로직스',1020000,-.5,52.4,38.0,6.1,12.0,73],['KB금융',112500,1.1,7.4,6.6,.62,74.1,45],['한화에어로스페이스',890000,3.2,24.8,18.2,5.3,24.0,42],['NAVER',241000,-.9,25.1,19.9,1.5,50.3,38]];
-const topsUse=SNAP.tops?SNAP.tops.filter(t=>!/우[A-Z]?$/.test(t.name)).slice(0,8).map(t=>[t.name,t.price,t.chg,t.per||null,null,t.pbr||null,t.foreign,t.mcap]):tops;
-$('#topTable').innerHTML=`<thead><tr><th>종목</th><th>현재가</th><th>등락</th><th>PER</th><th>선행PER</th><th>PBR</th><th>외국인 보유</th><th>시총(조)</th></tr></thead><tbody>${topsUse.map(t=>`<tr><td><b>${t[0]}</b></td><td>${fmt(t[1],0)}</td><td class="${cls(t[2])}">${arrow(t[2])} ${fmt(Math.abs(t[2]))}%</td><td>${fmt(t[3],1)}</td><td>${fmt(t[4],1)}</td><td>${fmt(t[5])}</td><td>${fmt(t[6],1)}%</td><td>${fmt(t[7],0)}</td></tr>`).join('')}</tbody>`;
+const topsUse=SNAP.tops?SNAP.tops.filter(t=>!/우[A-Z]?$/.test(t.name)).slice(0,8).map(t=>[t.name,t.price,t.chg,t.per||null,null,t.pbr||null,t.foreign,t.mcap,t.dd,t.mdd5]):tops;
+$('#topTable').innerHTML=`<thead><tr><th>종목</th><th>현재가</th><th>등락</th><th>PER</th><th>선행PER</th><th>PBR</th><th>외국인 보유</th><th>시총(조)</th><th>고점대비(52주)</th><th>MDD(5Y)</th></tr></thead><tbody>${topsUse.map(t=>`<tr><td><b>${t[0]}</b></td><td>${fmt(t[1],0)}</td><td class="${cls(t[2])}">${arrow(t[2])} ${fmt(Math.abs(t[2]))}%</td><td>${fmt(t[3],1)}</td><td>${fmt(t[4],1)}</td><td>${fmt(t[5])}</td><td>${fmt(t[6],1)}%</td><td>${fmt(t[7],0)}</td><td class="down">${t[8]!=null?fmt(t[8],1)+'%':'-'}</td><td class="down">${t[9]!=null?fmt(t[9],1)+'%':'-'}</td></tr>`).join('')}</tbody>`;
 
 /* ============ 밸류에이션 ============ */
 let vMk='KOSPI',vMt='PER';
@@ -571,6 +573,9 @@ function renderCharts(){
   // 지수
   const sel=idxList.filter(o=>idxSel.has(o.k)),multi=sel.length>1;
   lineChart($('#idxChart'),{dates:D,h:300,series:sel.map(o=>{const d=sl(o.s);return{name:o.k,color:o.color,area:!multi&&!rateSel.size,data:multi?d.map(v=>v/d[0]*100):d,raw:multi?d:null}}).concat(rateList.filter(o=>rateSel.has(o.k)).map(o=>({name:o.k,color:o.color,axis:'r',w:1.4,dash:'5 3',data:sl(S[o.s]),fmt:v=>fmt(v,2)+'%'}))),fmt:v=>fmt(v)});
+  const ddOf=a=>{let pk=-Infinity;return a.map(v=>{pk=Math.max(pk,v);return(v/pk-1)*100})};
+  lineChart($('#ddChart'),{dates:D,h:170,series:sel.map(o=>({name:o.k,color:o.color,area:!multi,data:ddOf(sl(o.s)),fmt:v=>fmt(v,1)+'%'})),fmt:v=>fmt(v,1)+'%'});
+  $('#ddLegend').innerHTML=sel.map(o=>{const d=ddOf(sl(o.s));return `<span><i style="background:${o.color}"></i>${o.k} 현재 <b class="down">${fmt(last(d),1)}%</b> · 구간 MDD <b class="down">${fmt(Math.min(...d),1)}%</b></span>`}).join('');
   $('#idxLegend').innerHTML=sel.map(o=>`<span><i style="background:${o.color}"></i>${o.k}${multi?'':''}</span>`).join('')+rateList.filter(o=>rateSel.has(o.k)).map(o=>`<span><i style="background:${o.color}"></i>${o.k}(우축)</span>`).join('')+(multi?'<span>(시작=100)</span>':'');
   // 밸류에이션
   const full=valSeries(),mean=full.reduce((a,c)=>a+c,0)/N,sd=Math.sqrt(full.reduce((a,c)=>a+(c-mean)**2,0)/N);

@@ -397,6 +397,21 @@ def collect_krx():
                          "pbr": float(fu.loc[tk, "PBR"]) if tk in fu.index else None,
                          "foreign": float(fr.loc[tk, "지분율"]) if tk in fr.index else None,
                          "mcap": round(float(o.loc[tk, "시가총액"]) / 1e12, 1)})
+        # 종목별 낙폭: 수정주가 5년 기준 (현재 낙폭 = 52주 고점 대비, MDD = 최대 낙폭)
+        s5 = (now - timedelta(days=365 * 5 + 10)).strftime("%Y%m%d")
+        for t in tops:
+            try:
+                px = _chunked(stock.get_market_ohlcv, s5, end, t["ticker"])["종가"]
+                px = px[px > 0]
+
+                def _mdd(x):
+                    return round(float((x / x.cummax() - 1).min() * 100), 2)
+                y1 = px[px.index >= px.index[-1] - timedelta(days=365)]
+                t["dd"] = round(float((px.iloc[-1] / y1.max() - 1) * 100), 2)
+                t["mdd1"] = _mdd(y1)
+                t["mdd5"] = _mdd(px)
+            except Exception:
+                pass
         SNAP["tops"] = tops
     except Exception as e:
         failed.append(f"breadth/tops: {type(e).__name__}")
