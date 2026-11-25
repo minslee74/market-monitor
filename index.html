@@ -141,6 +141,7 @@ footer{color:var(--dim);font-size:11.5px;text-align:center;padding:20px}
     <div class="panel c8">
       <div class="ph"><h3>지수 추이</h3>
         <div class="chips" id="idxChips"></div><span class="src">2개 이상 선택 시 시작점=100 리베이스</span></div>
+      <div class="chips" id="rateChips" style="margin:2px 0 6px"><span class="lbl" style="margin-right:6px">금리 겹쳐보기(우축 %)</span></div>
       <div class="chart" id="idxChart"></div><div class="legend" id="idxLegend"></div>
     </div>
     <div class="panel c4">
@@ -298,7 +299,8 @@ const KS=DATA.series.kospi; // 실데이터가 있으면 KOSPI 거래일을 기�
 const N=KS?KS.dates.length:1300;
 const DATES=KS?KS.dates.map(s=>new Date(s+'T00:00:00')):(()=>{const a=[];let d=new Date(2026,10,6);while(a.length<N){if(d.getDay()%6!==0)a.push(new Date(d));d=new Date(d-864e5)}return a.reverse()})();
 const ds=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const RANGES={'1M':21,'3M':63,'6M':126,'1Y':252,'3Y':756,'5Y':1260};
+const RANGES={'1M':21,'3M':63,'6M':126,'1Y':252,'3Y':756,'5Y':1260,'10Y':2520,'20Y':5040};
+const STAT=1260,tl=a=>a.slice(-STAT); // 평균·백분위 등 통계는 최근 5년 기준 유지
 let RANGE='1Y';
 const sl=a=>a.slice(-RANGES[RANGE]);
 const dsl=()=>sl(DATES);
@@ -431,14 +433,15 @@ gauge($('#gauge'),fgScore);
 const sigs=[['VKOSPI',last(S.vkospi),'pt',100-(last(S.vkospi)-10)*4],['VIX',last(S.vix),'pt',100-(last(S.vix)-10)*4],['신용스프레드',last(S.cspread),'bp',55],['외국인 수급',1830,'억',62],['시장 폭(200일선)',last(S.ma200),'%',last(S.ma200)],['모멘텀(125일)',chg(IDX[0].s,125),'%',60],['풋/콜 비율',0.92,'',34]];
 $('#sigs').innerHTML=sigs.map(([n,v,u,sc])=>{sc=Math.max(3,Math.min(97,sc));return `<div class="sig"><span>${n}</span><div class="tr"><i style="left:${sc}%"></i></div><em>${fmt(v,u==='억'?0:1)}${u==='%'?'%':''}</em></div>`}).join('');
 /* ---- 실데이터 기반 위험선호 지수·시황 (각 신호 = 최근 5년 분포 내 백분위, 높을수록 탐욕) ---- */
-const pctRank=(a,x)=>a.filter(v=>v<x).length/a.length*100;
+const pctRank=(a,x)=>{a=tl(a);return a.filter(v=>v<x).length/a.length*100};
 const cl3=v=>Math.max(3,Math.min(97,v));
 const FS=DATA.series.flow_foreign;
 const f5=FS?(()=>{const c=FS.close,r=[];for(let i=4;i<c.length;i++)r.push(c[i]+c[i-1]+c[i-2]+c[i-3]+c[i-4]);return r})():null;
 const kS=IDX[0].s,ma125=kS.map((_,i)=>{const a=kS.slice(Math.max(0,i-124),i+1);return kS[i]/(a.reduce((x,y)=>x+y,0)/a.length)});
 const brd=SNAP.breadth&&SNAP.breadth.KOSPI;
+const CNNFG=DATA.series.cnn_fg?real('cnn_fg'):null;
 const sigs2=[
- ['VKOSPI','N/A',null],
+ ['CNN 공포·탐욕',CNNFG?fmt(last(CNNFG),0):'N/A',CNNFG?cl3(last(CNNFG)):null],
  ['VIX',REAL.has('vix')?fmt(last(S.vix),1):'N/A',REAL.has('vix')?cl3(100-pctRank(S.vix,last(S.vix))):null],
  ['신용스프레드',REAL.has('cspread')?fmt(last(S.cspread),0)+'bp':'N/A',REAL.has('cspread')?cl3(100-pctRank(S.cspread,last(S.cspread))):null],
  ['외국인 수급(5일)',f5?sgn(last(f5),0)+'억':'N/A',f5?cl3(pctRank(f5,last(f5))):null],
@@ -465,6 +468,9 @@ function valTable(){
 const idxSel=new Set(['KOSPI']);
 const idxList=[...IDX.map(o=>({k:o.k,s:o.s,color:o.color,real:!!o.real})),{k:'닛케이225',s:S.nikkei,color:'var(--c1)',real:REAL.has('nikkei')},{k:'상해종합',s:S.shcomp,color:'var(--c2)',real:REAL.has('shcomp')}];
 function idxChips(){const h=$('#idxChips');h.innerHTML='';idxList.forEach(o=>{const b=el('button','chip'+(idxSel.has(o.k)?' on':''),o.k);b.style.setProperty('--cc',o.color);b.onclick=()=>{if(idxSel.has(o.k)){if(idxSel.size>1)idxSel.delete(o.k)}else idxSel.add(o.k);idxChips();renderCharts()};h.append(b)})}idxChips();
+const rateSel=new Set();
+const rateList=[{k:'국고3Y',s:'kr3',color:'#ffd666'},{k:'국고10Y',s:'kr10',color:'#ff7a45'},{k:'한국 기준금리',s:'polKR',color:'#d4b106'},{k:'미국 2Y',s:'us2',color:'#69c0ff'},{k:'미국 10Y',s:'us10',color:'#b37feb'},{k:'연준 기준금리',s:'polUS',color:'#5cdbd3'}];
+function rateChips(){const h=$('#rateChips');[...h.querySelectorAll('button')].forEach(b=>b.remove());rateList.forEach(o=>{const b=el('button','chip'+(rateSel.has(o.k)?' on':''),o.k);b.style.setProperty('--cc',o.color);b.onclick=()=>{rateSel.has(o.k)?rateSel.delete(o.k):rateSel.add(o.k);rateChips();renderCharts()};h.append(b)})}rateChips();
 const sectors=[['반도체',22,1.8],['금융',9,.9],['2차전지',7,-1.2],['자동차',6,.6],['바이오',6,-.4],['조선/방산',6,2.4],['인터넷/플랫폼',5,-.8],['화학',3,-.9],['음식료/유통',3,.4],['철강',2,.2],['건설',2,-.3],['유틸리티',2,.1],['통신',2,0],['엔터/게임',2,-1.5]];
 const secTot=SNAP.sectors?SNAP.sectors.reduce((a,x)=>a+x.mcap,0):0;
 const sectorsUse=SNAP.sectors?SNAP.sectors.map(x=>[x.name,Math.max(1.5,x.mcap/secTot*100),x.chg]).sort((a,b)=>b[1]-a[1]):sectors;
@@ -482,10 +488,10 @@ valChips();
 const valSeries=()=>vMk==='KOSPI'?(vMt==='PER'?S.perK:S.pbrK):(vMt==='PER'?S.perQ:S.pbrQ);
 function valCards(){
   const cards=[];[['KOSPI',S.perK,S.pbrK],['KOSDAQ',S.perQ,S.pbrQ]].forEach(([n,p,b])=>{
-    const mean=p.reduce((a,c)=>a+c,0)/N,sd=Math.sqrt(p.reduce((a,c)=>a+(c-mean)**2,0)/N),z=(last(p)-mean)/sd;
+    const p5=tl(p),n5=p5.length,mean=p5.reduce((a,c)=>a+c,0)/n5,sd=Math.sqrt(p5.reduce((a,c)=>a+(c-mean)**2,0)/n5),z=(last(p)-mean)/sd;
     cards.push(stat(n+' PER',fmt(last(p),1),`5년 평균 ${fmt(mean,1)} · Z=${sgn(z,1)}`,p,{chText:`${arrow(z)} ${sgn(z,1)}σ 대비 평균`,changePct:z,sparkN:250}));
-    const mb=b.reduce((a,c)=>a+c,0)/N;cards.push(stat(n+' PBR',fmt(last(b)),`5년 평균 ${fmt(mb)}`,b,{chText:`${sgn(pct(last(b),mb),1)}% 대비 평균`,changePct:last(b)-mb,sparkN:250}))});
-  const erp=100/IDX[0].per-last(S.kr10);const erpM=S.perK.reduce((a,p,i)=>a+(100/p-S.kr10[i]),0)/N;cards.push(stat('KOSPI ERP',fmt(erp),'1/PER − 국고10Y',null,{unit:'%p',chText:`5년 평균 ${sgn(erpM)}%p`,changePct:erp-erpM}));
+    const mb=tl(b).reduce((a,c)=>a+c,0)/tl(b).length;cards.push(stat(n+' PBR',fmt(last(b)),`5년 평균 ${fmt(mb)}`,b,{chText:`${sgn(pct(last(b),mb),1)}% 대비 평균`,changePct:last(b)-mb,sparkN:250}))});
+  const erp=100/IDX[0].per-last(S.kr10);const erpM=tl(S.perK).reduce((a,p,i)=>a+(100/p-tl(S.kr10)[i]),0)/tl(S.perK).length;cards.push(stat('KOSPI ERP',fmt(erp),'1/PER − 국고10Y',null,{unit:'%p',chText:`5년 평균 ${sgn(erpM)}%p`,changePct:erp-erpM}));
   cards.push(stat('버핏지수(한국)','N/A','시총/GDP · 데이터 소스 없음',null,{chText:'—',changePct:0}));
   $('#valCards').innerHTML=cards.join('');
 }valCards();
@@ -505,7 +511,7 @@ $('#creditCards').innerHTML=[
  stat('KOSPI 신용잔고',fmt(last(cr),1),'',cr,{unit:'조원'}),
  stat('KOSDAQ 신용잔고',fmt(last(cq),1),'',cq,{unit:'조원'}),
  stat('투자자예탁금',fmt(last(S.dep),1),'',S.dep,{unit:'조원'}),
- stat('신용잔고/시총',fmt(last(S.credRatio),2),'5년 평균 '+fmt(S.credRatio.reduce((a,c)=>a+c)/N,2)+'%',S.credRatio,{unit:'%',changePct:chg(S.credRatio),invert:true}),
+ stat('신용잔고/시총',fmt(last(S.credRatio),2),'5년 평균 '+fmt(tl(S.credRatio).reduce((a,c)=>a+c)/tl(S.credRatio).length,2)+'%',S.credRatio,{unit:'%',changePct:chg(S.credRatio),invert:true}),
  stat('반대매매(일)',fmt(last(S.forced),0),'20일 평균 '+fmt(sum(S.forced,20)/20,0)+'억',S.forced,{unit:'억원',invert:true}),
 ].join('');
 
@@ -564,8 +570,8 @@ function renderCharts(){
   const D=dsl();
   // 지수
   const sel=idxList.filter(o=>idxSel.has(o.k)),multi=sel.length>1;
-  lineChart($('#idxChart'),{dates:D,h:300,series:sel.map(o=>{const d=sl(o.s);return{name:o.k,color:o.color,area:!multi,data:multi?d.map(v=>v/d[0]*100):d,raw:multi?d:null}}),fmt:v=>fmt(v)});
-  $('#idxLegend').innerHTML=sel.map(o=>`<span><i style="background:${o.color}"></i>${o.k}${multi?'':''}</span>`).join('')+(multi?'<span>(시작=100)</span>':'');
+  lineChart($('#idxChart'),{dates:D,h:300,series:sel.map(o=>{const d=sl(o.s);return{name:o.k,color:o.color,area:!multi&&!rateSel.size,data:multi?d.map(v=>v/d[0]*100):d,raw:multi?d:null}}).concat(rateList.filter(o=>rateSel.has(o.k)).map(o=>({name:o.k,color:o.color,axis:'r',w:1.4,dash:'5 3',data:sl(S[o.s]),fmt:v=>fmt(v,2)+'%'}))),fmt:v=>fmt(v)});
+  $('#idxLegend').innerHTML=sel.map(o=>`<span><i style="background:${o.color}"></i>${o.k}${multi?'':''}</span>`).join('')+rateList.filter(o=>rateSel.has(o.k)).map(o=>`<span><i style="background:${o.color}"></i>${o.k}(우축)</span>`).join('')+(multi?'<span>(시작=100)</span>':'');
   // 밸류에이션
   const full=valSeries(),mean=full.reduce((a,c)=>a+c,0)/N,sd=Math.sqrt(full.reduce((a,c)=>a+(c-mean)**2,0)/N);
   lineChart($('#valChart'),{dates:D,h:290,series:[{name:vMk+' '+vMt,color:'var(--c1)',data:sl(full),w:2}],hlines:[{y:mean,label:'평균 '+fmt(mean),color:'#8696a9'},{y:mean+sd,label:'+1σ',color:'#f5a524'},{y:mean-sd,label:'-1σ',color:'#f5a524'},{y:mean+2*sd,label:'+2σ',color:'#f472b6'},{y:mean-2*sd,label:'-2σ',color:'#f472b6'}].filter(h=>h.y>0)});
@@ -591,7 +597,7 @@ const TXT={real:'실데이터',partial:'일부 실데이터',sample:'샘플'};
 const st=a=>a.every(Boolean)?'real':a.some(Boolean)?'partial':'sample';
 /* partial 로 표시되는 패널에서 "구체적으로 뭐가 샘플인가"를 태그 title(마우스오버)로 노출 */
 const NOTES={
- '#gauge':'VKOSPI·풋/콜 비율 등 소스 없는 신호는 N/A 처리 후 합성에서 제외(표의 흐린 행 참고)',
+ '#gauge':'풋/콜 비율 등 소스 없는 신호는 N/A 처리 후 합성에서 제외(표의 흐린 행 참고)',
  '#valTable':'S&P500·NASDAQ 등 해외지수의 PER·PBR·배당·ROE는 샘플(종목명 옆 * 표시), 선행PER은 전 지수 공통 소스 없음(실데이터 행은 "-")',
  '#valCards':'버핏지수(시총/GDP)는 소스 없어 N/A 카드로 표시, 나머지 PER·PBR 카드는 실데이터',
  '#breadthBox':'52주 신고가/신저가·공매도 비중·프로그램 순매수는 소스 없어 표에 N/A로 표시',

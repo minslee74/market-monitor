@@ -8,7 +8,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 OUT_DIR = BASE / "data"
 SECRET_KEYS = ("KRX_ID", "KRX_PW", "ECOS_API_KEY", "FRED_API_KEY", "DATA_GO_KR_KEY")
-KEEP_DAYS = 365 * 5 + 20
+KEEP_DAYS = 365 * 20 + 30  # 20년치 보관
 
 
 def load_env(path=BASE / ".env"):
@@ -98,15 +98,15 @@ def collect_yf():
     series, failed = {}, []
     for key, sym in YF.items():
         try:
-            df = yf.download(sym, period="5y", auto_adjust=True, progress=False)
+            df = yf.download(sym, period="max", auto_adjust=True, progress=False)
             c = df["Close"]
             if hasattr(c, "columns"):
                 c = c.iloc[:, 0]
             c = c.dropna()
             if len(c) < 20:
                 raise ValueError("데이터 부족")
-            series[key] = {"symbol": sym, "freq": "D", "dates": [d.strftime("%Y-%m-%d") for d in c.index],
-                           "close": [rnd(v) for v in c.values]}
+            d, v = trim([x.strftime("%Y-%m-%d") for x in c.index], [rnd(x) for x in c.values])
+            series[key] = {"symbol": sym, "freq": "D", "dates": d, "close": v}
         except Exception as e:
             failed.append(f"{key}({sym}): {type(e).__name__}")
     return series, failed
@@ -272,6 +272,35 @@ def collect_freesis():
     return series, failed
 
 
+# ---------------- 소스: CNN 공포·탐욕 지수 (키 불필요, 2020-07-14 부터 제공) ----------------
+def collect_cnn():
+    import requests
+    h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+         "Referer": "https://edition.cnn.com/", "Origin": "https://edition.cnn.com"}
+    url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata/2020-07-14"
+    last = None
+    for _ in range(3):
+        try:
+            r = requests.get(url, headers=h, timeout=40)
+            r.raise_for_status()
+            rows = r.json()["fear_and_greed_historical"]["data"]
+            break
+        except Exception as e:  # noqa
+            last = e
+            time.sleep(2)
+    else:
+        raise last
+    byday = {}
+    for p in rows:  # 같은 날짜가 여럿이면 마지막 값 사용
+        if p.get("y") is not None:
+            byday[datetime.utcfromtimestamp(p["x"] / 1000).strftime("%Y-%m-%d")] = rnd(p["y"])
+    d = sorted(byday)
+    if len(d) < 100:
+        raise ValueError("데이터 부족")
+    return {"cnn_fg": {"symbol": "CNN Fear&Greed", "freq": "D", "label": "CNN 공포·탐욕 지수", "unit": "",
+                       "dates": d, "close": [byday[x] for x in d]}}, []
+
+
 # ---------------- 소스: KRX (다음 단계) ----------------
 SNAP = {}  # 표/요약용 스냅샷 (collect_krx 가 채움)
 
@@ -303,7 +332,7 @@ def collect_krx():
     now = datetime.now()
     end = now.strftime("%Y%m%d")
     start5 = (now - timedelta(days=KEEP_DAYS)).strftime("%Y%m%d")
-    start10 = (now - timedelta(days=365 * 10 + 20)).strftime("%Y%m%d")
+    start10 = start5  # 지수 PER/PBR 도 보관 기간 전체(20년)를 사용
     series, failed = {}, []
     SNAP.clear()
     last_date = None
@@ -336,7 +365,7 @@ def collect_krx():
     # 2) 투자자별 순매수 (KOSPI+KOSDAQ 합산, 억원)
     try:
         import pandas as pd
-        s1 = (now - timedelta(days=380)).strftime("%Y%m%d")
+        s1 = start5
         tot = None
         for mk in ("KOSPI", "KOSDAQ"):
             df = _chunked(stock.get_market_trading_value_by_date, s1, end, mk)
@@ -419,6 +448,7 @@ def main():
     run("ecos", collect_ecos, ("ECOS_API_KEY",))
     run("krx", collect_krx, ("KRX_ID", "KRX_PW"))
     run("freesis", collect_freesis)
+    run("cnn", collect_cnn)
 
     out["snapshot"] = dict(SNAP) if SNAP else (prev or {}).get("snapshot", {})
     # 이번에 수집 실패한 시리즈는 이전 값을 유지하되 stale 로 표시 (일시 장애로 화면이 비는 것을 방지)
