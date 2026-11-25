@@ -85,7 +85,7 @@ def rnd(v):
 
 # ---------------- 소스: yfinance (키 불필요) ----------------
 YF = {
-    "kospi": "^KS11", "kosdaq": "^KQ11", "kospi200": "^KS200", "sp500": "^GSPC", "nasdaq": "^IXIC",
+    "kospi": "^KS11", "kosdaq": "^KQ11", "sp500": "^GSPC", "nasdaq": "^IXIC",
     "nikkei": "^N225", "shcomp": "000001.SS",
     "usdkrw": "KRW=X", "jpykrw": "JPYKRW=X", "eurkrw": "EURKRW=X", "dxy": "DX-Y.NYB",
     "wti": "CL=F", "brent": "BZ=F", "gold": "GC=F", "copper": "HG=F", "btc": "BTC-USD",
